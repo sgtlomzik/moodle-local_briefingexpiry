@@ -1,0 +1,21 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# Build & release artifacts
+release/
+*.zip
+*.tar.gz
+
+# Browser automation / QA leftovers
+chrome-profile/
+edge-profile/
+qa_screenshots/
+
+# Dependencies
+node_modules/
+vendor/
