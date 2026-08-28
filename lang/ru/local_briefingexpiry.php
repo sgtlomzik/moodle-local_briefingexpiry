@@ -18,7 +18,7 @@
  * Russian strings for local_briefingexpiry.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -89,3 +89,14 @@ $string['privacy:metadata:arch:timereset'] = 'Время сброса завер
 $string['privacy:metadata:arch:finalgrade'] = 'Оценка пользователя перед сбросом.';
 $string['privacy:logpath'] = 'Журнал уведомлений инструктажей';
 $string['privacy:archpath'] = 'Архив сбросов инструктажей';
+
+// Course custom fields created at install time.
+$string['customfieldcategory'] = 'Инструктажи';
+$string['field_autoreset'] = 'Автоматически сбрасывать прохождение по истечении срока';
+$string['field_enabled'] = 'Является инструктажем';
+$string['field_period'] = 'Срок действия инструктажа';
+$string['period_1year'] = '1 год';
+$string['period_2years'] = '2 года';
+$string['period_3months'] = '3 месяца';
+$string['period_3years'] = '3 года';
+$string['period_6months'] = '6 месяцев';

@@ -18,7 +18,7 @@
  * Scheduled task for checking briefing expiry.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 

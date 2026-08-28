@@ -18,7 +18,7 @@
  * Upgrade steps for local_briefingexpiry.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -36,6 +36,8 @@ function xmldb_local_briefingexpiry_upgrade($oldversion) {
     if ($oldversion < 2026071000) {
         // Add the quarterly option to the briefing_period custom field. It is appended
         // to the end of the options list so existing stored intvalues keep their meaning.
+        // The label is the Russian one on purpose: before 1.2.0 the install script created
+        // the options with hardcoded Russian text, and this step only ever runs on such a site.
         $fields = $DB->get_records('customfield_field', ['shortname' => 'briefing_period']);
         foreach ($fields as $field) {
             $configdata = json_decode($field->configdata, true);

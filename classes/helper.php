@@ -18,7 +18,7 @@
  * Helper class for local_briefingexpiry.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -26,7 +26,48 @@ namespace local_briefingexpiry;
 
 defined('MOODLE_INTERNAL') || die();
 
+/**
+ * Expiry calculations, completion resets and notifications for briefing courses.
+ *
+ * @package    local_briefingexpiry
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class helper {
+
+    /**
+     * Period specs keyed by the 1-based index the select custom field stores.
+     *
+     * The order must match the options created in db/install.php; new options are
+     * appended so that values already stored keep their meaning.
+     */
+    private const PERIOD_SPECS = [
+        1 => '6 months',
+        2 => '1 year',
+        3 => '2 years',
+        4 => '3 years',
+        5 => '3 months',
+    ];
+
+    /**
+     * Period specs keyed by the display label, as a fallback.
+     *
+     * Both the English labels created on a new site and the Russian labels created by
+     * releases before 1.2.0 are listed, so a field whose options were re-created by hand
+     * is still understood.
+     */
+    private const PERIOD_LABELS = [
+        '6 months' => '6 months',
+        '1 year' => '1 year',
+        '2 years' => '2 years',
+        '3 years' => '3 years',
+        '3 months' => '3 months',
+        '6 месяцев' => '6 months',
+        '1 год' => '1 year',
+        '2 года' => '2 years',
+        '3 года' => '3 years',
+        '3 месяца' => '3 months',
+    ];
 
     /**
      * Get all courses configured as briefing courses.
@@ -57,18 +98,15 @@ class helper {
      * @return string|null Period spec such as '1 year', or null if not set
      */
     public static function get_period_spec($val, ?string $str): ?string {
-        if ($val == 1 || $str === '6 месяцев' || $str === '6 months') {
-            return '6 months';
-        } else if ($val == 2 || $str === '1 год' || $str === '1 year') {
-            return '1 year';
-        } else if ($val == 3 || $str === '2 года' || $str === '2 years') {
-            return '2 years';
-        } else if ($val == 4 || $str === '3 года' || $str === '3 years') {
-            return '3 years';
-        } else if ($val == 5 || $str === '3 месяца' || $str === '3 months') {
-            return '3 months';
+        $index = (int)$val;
+
+        if (isset(self::PERIOD_SPECS[$index])) {
+            return self::PERIOD_SPECS[$index];
         }
-        return null;
+
+        $label = trim((string)$str);
+
+        return self::PERIOD_LABELS[$label] ?? null;
     }
 
     /**
@@ -196,15 +234,16 @@ class helper {
         $globalautoreset = (bool)get_config('local_briefingexpiry', 'enableautoreset');
         $notifystudent = (bool)get_config('local_briefingexpiry', 'notifystudent');
 
-        $expiring_users = [];
-        $expired_users = [];
-        $unenrolled_expired_users = [];
-        $logs_to_write = [];
+        $expiringusers = [];
+        $expiredusers = [];
+        $unenrolledusers = [];
+        $pendinglogs = [];
 
         $namefields = \core_user\fields::for_name()->get_sql('u', false, '', '', false)->selects;
 
+        $handler = \core_course\customfield\course_handler::create();
+
         foreach ($courses as $course) {
-            $handler = \core_course\customfield\course_handler::create();
             $instancesdata = $handler->get_instances_data([$course->id], true);
             $period = null;
             $autoreset = false;
@@ -234,7 +273,7 @@ class helper {
                 continue;
             }
 
-            $enrolled_userids = $DB->get_fieldset_sql("
+            $enrolledids = $DB->get_fieldset_sql("
                 SELECT DISTINCT ue.userid
                   FROM {user_enrolments} ue
                   JOIN {enrol} e ON e.id = ue.enrolid
@@ -244,14 +283,14 @@ class helper {
                 'active' => \ENROL_USER_ACTIVE,
                 'enrolactive' => \ENROL_INSTANCE_ENABLED
             ]);
-            $enrolled_set = array_flip($enrolled_userids);
+            $enrolledset = array_flip($enrolledids);
 
             // Batch-load already sent notifications for this course.
-            $sent_set = [];
+            $sentset = [];
             $sentlogs = $DB->get_records('local_briefingexpiry_log', ['courseid' => $course->id],
                 '', 'id, userid, timecompleted, notificationtype');
             foreach ($sentlogs as $sentlog) {
-                $sent_set["{$sentlog->userid}_{$sentlog->timecompleted}_{$sentlog->notificationtype}"] = true;
+                $sentset["{$sentlog->userid}_{$sentlog->timecompleted}_{$sentlog->notificationtype}"] = true;
             }
 
             $now = time();
@@ -260,15 +299,15 @@ class helper {
                 $userid = $completion->userid;
                 $timecompleted = (int)$completion->timecompleted;
 
-                $expiry_time = self::calculate_expiry($timecompleted, $period);
-                $warning_time = $expiry_time - ($warningdays * 86400);
-                $is_enrolled = isset($enrolled_set[$userid]);
+                $expirytime = self::calculate_expiry($timecompleted, $period);
+                $warningtime = $expirytime - ($warningdays * DAYSECS);
+                $isenrolled = isset($enrolledset[$userid]);
 
-                $warning_sent = isset($sent_set["{$userid}_{$timecompleted}_warning"]);
-                $expired_sent = isset($sent_set["{$userid}_{$timecompleted}_expired"]);
+                $warningsent = isset($sentset["{$userid}_{$timecompleted}_warning"]);
+                $expiredsent = isset($sentset["{$userid}_{$timecompleted}_expired"]);
 
-                if ($now >= $expiry_time) {
-                    if ($expired_sent) {
+                if ($now >= $expirytime) {
+                    if ($expiredsent) {
                         continue;
                     }
 
@@ -276,10 +315,10 @@ class helper {
                         'user' => $completion,
                         'course' => $course,
                         'timecompleted' => $timecompleted,
-                        'timeexpires' => $expiry_time,
+                        'timeexpires' => $expirytime,
                     ];
 
-                    if ($is_enrolled) {
+                    if ($isenrolled) {
                         $didreset = false;
                         if ($globalautoreset && $autoreset) {
                             // Capture the final grade before it is wiped by the reset.
@@ -292,56 +331,56 @@ class helper {
                             $arch->userid = $userid;
                             $arch->courseid = $course->id;
                             $arch->timecompleted = $timecompleted;
-                            $arch->timeexpires = $expiry_time;
+                            $arch->timeexpires = $expirytime;
                             $arch->timereset = time();
                             $arch->finalgrade = $finalgrade;
                             $DB->insert_record('local_briefingexpiry_arch', $arch);
 
                             if ($notifystudent) {
-                                self::notify_student($course, $userid, $timecompleted, $expiry_time);
+                                self::notify_student($course, $userid, $timecompleted, $expirytime);
                             }
 
                             // The reset is irreversible, so mark this completion as
                             // processed right away regardless of digest delivery.
-                            self::write_log($userid, $course->id, $timecompleted, $expiry_time, 'expired');
+                            self::write_log($userid, $course->id, $timecompleted, $expirytime, 'expired');
                         }
 
                         if ($notifyexpired) {
-                            $expired_users[] = $entry;
+                            $expiredusers[] = $entry;
                             if (!$didreset) {
-                                $logs_to_write[] = self::make_log($userid, $course->id, $timecompleted,
-                                    $expiry_time, 'expired');
+                                $pendinglogs[] = self::make_log($userid, $course->id, $timecompleted,
+                                    $expirytime, 'expired');
                             }
                         }
                     } else {
                         if ($includeunenrolled && $notifyexpired) {
-                            $unenrolled_expired_users[] = $entry;
-                            $logs_to_write[] = self::make_log($userid, $course->id, $timecompleted,
-                                $expiry_time, 'expired');
+                            $unenrolledusers[] = $entry;
+                            $pendinglogs[] = self::make_log($userid, $course->id, $timecompleted,
+                                $expirytime, 'expired');
                         }
                         // Otherwise nothing irreversible happened: leave the record
                         // unlogged so it is picked up if the settings change later.
                     }
-                } else if ($now >= $warning_time) {
-                    if (!$warning_sent && $is_enrolled) {
-                        $expiring_users[] = [
+                } else if ($now >= $warningtime) {
+                    if (!$warningsent && $isenrolled) {
+                        $expiringusers[] = [
                             'user' => $completion,
                             'course' => $course,
                             'timecompleted' => $timecompleted,
-                            'timeexpires' => $expiry_time,
+                            'timeexpires' => $expirytime,
                         ];
-                        $logs_to_write[] = self::make_log($userid, $course->id, $timecompleted,
-                            $expiry_time, 'warning');
+                        $pendinglogs[] = self::make_log($userid, $course->id, $timecompleted,
+                            $expirytime, 'warning');
                     }
                 }
             }
         }
 
-        if (!empty($expiring_users) || !empty($expired_users) || !empty($unenrolled_expired_users)) {
-            $sent = self::send_digest($expiring_users, $expired_users, $unenrolled_expired_users);
+        if (!empty($expiringusers) || !empty($expiredusers) || !empty($unenrolledusers)) {
+            $sent = self::send_digest($expiringusers, $expiredusers, $unenrolledusers);
             if ($sent) {
                 // Write notification logs to DB so they are not sent again.
-                foreach ($logs_to_write as $log) {
+                foreach ($pendinglogs as $log) {
                     $DB->insert_record('local_briefingexpiry_log', $log);
                 }
             }
@@ -389,18 +428,18 @@ class helper {
     /**
      * Send daily summary digest report to configured recipients.
      *
-     * @param array $expiring_users Expiring users array
-     * @param array $expired_users Expired users array
-     * @param array $unenrolled_expired_users Unenrolled expired users array
+     * @param array $expiringusers Users whose briefing expires soon
+     * @param array $expiredusers Users whose briefing has expired
+     * @param array $unenrolledusers Unenrolled users whose briefing has expired
      * @return bool True if the digest was delivered to at least one recipient
      */
-    public static function send_digest(array $expiring_users, array $expired_users, array $unenrolled_expired_users): bool {
-        $recipients_cfg = get_config('local_briefingexpiry', 'recipients');
-        if (empty($recipients_cfg)) {
+    public static function send_digest(array $expiringusers, array $expiredusers, array $unenrolledusers): bool {
+        $recipientsconfig = get_config('local_briefingexpiry', 'recipients');
+        if (empty($recipientsconfig)) {
             return false;
         }
 
-        $recipients = get_users_from_config($recipients_cfg, 'local/briefingexpiry:receivenotifications');
+        $recipients = get_users_from_config($recipientsconfig, 'local/briefingexpiry:receivenotifications');
         if (empty($recipients)) {
             return false;
         }
@@ -415,16 +454,16 @@ class helper {
             $subject = $stringmanager->get_string('digest_subject', 'local_briefingexpiry', null, $lang);
             $intro = $stringmanager->get_string('digest_intro', 'local_briefingexpiry', null, $lang);
 
-            $expiring_title = $stringmanager->get_string('digest_expiring_title', 'local_briefingexpiry', null, $lang);
-            $expired_title = $stringmanager->get_string('digest_expired_title', 'local_briefingexpiry', null, $lang);
-            $unenrolled_title = $stringmanager->get_string('digest_unenrolled_title', 'local_briefingexpiry', null, $lang);
+            $expiringtitle = $stringmanager->get_string('digest_expiring_title', 'local_briefingexpiry', null, $lang);
+            $expiredtitle = $stringmanager->get_string('digest_expired_title', 'local_briefingexpiry', null, $lang);
+            $unenrolledtitle = $stringmanager->get_string('digest_unenrolled_title', 'local_briefingexpiry', null, $lang);
 
-            $hdr_fullname = $stringmanager->get_string('digest_header_fullname', 'local_briefingexpiry', null, $lang);
-            $hdr_course = $stringmanager->get_string('digest_header_course', 'local_briefingexpiry', null, $lang);
-            $hdr_completed = $stringmanager->get_string('digest_header_completed', 'local_briefingexpiry', null, $lang);
-            $hdr_expires = $stringmanager->get_string('digest_header_expires', 'local_briefingexpiry', null, $lang);
-            $hdr_daysleft = $stringmanager->get_string('digest_header_daysleft', 'local_briefingexpiry', null, $lang);
-            $hdr_daysago = $stringmanager->get_string('digest_header_daysago', 'local_briefingexpiry', null, $lang);
+            $hdrfullname = $stringmanager->get_string('digest_header_fullname', 'local_briefingexpiry', null, $lang);
+            $hdrcourse = $stringmanager->get_string('digest_header_course', 'local_briefingexpiry', null, $lang);
+            $hdrcompleted = $stringmanager->get_string('digest_header_completed', 'local_briefingexpiry', null, $lang);
+            $hdrexpires = $stringmanager->get_string('digest_header_expires', 'local_briefingexpiry', null, $lang);
+            $hdrdaysleft = $stringmanager->get_string('digest_header_daysleft', 'local_briefingexpiry', null, $lang);
+            $hdrdaysago = $stringmanager->get_string('digest_header_daysago', 'local_briefingexpiry', null, $lang);
 
             $html = '
             <!DOCTYPE html>
@@ -559,23 +598,23 @@ class helper {
                             <div class="intro">' . $intro . '</div>';
 
             // Expiring soon.
-            if (!empty($expiring_users)) {
-                $html .= '<h2 class="section-title expiring">' . s($expiring_title) . '</h2>';
+            if (!empty($expiringusers)) {
+                $html .= '<h2 class="section-title expiring">' . s($expiringtitle) . '</h2>';
                 $html .= '<table>
                     <thead>
                         <tr>
-                            <th>' . s($hdr_fullname) . '</th>
-                            <th>' . s($hdr_course) . '</th>
-                            <th>' . s($hdr_completed) . '</th>
-                            <th>' . s($hdr_expires) . '</th>
-                            <th>' . s($hdr_daysleft) . '</th>
+                            <th>' . s($hdrfullname) . '</th>
+                            <th>' . s($hdrcourse) . '</th>
+                            <th>' . s($hdrcompleted) . '</th>
+                            <th>' . s($hdrexpires) . '</th>
+                            <th>' . s($hdrdaysleft) . '</th>
                         </tr>
                     </thead>
                     <tbody>';
-                foreach ($expiring_users as $item) {
+                foreach ($expiringusers as $item) {
                     $user = $item['user'];
                     $course = $item['course'];
-                    $daysleft = ceil(($item['timeexpires'] - time()) / 86400);
+                    $daysleft = ceil(($item['timeexpires'] - time()) / DAYSECS);
                     if ($daysleft < 0) {
                         $daysleft = 0;
                     }
@@ -592,23 +631,23 @@ class helper {
             }
 
             // Expired.
-            if (!empty($expired_users)) {
-                $html .= '<h2 class="section-title expired">' . s($expired_title) . '</h2>';
+            if (!empty($expiredusers)) {
+                $html .= '<h2 class="section-title expired">' . s($expiredtitle) . '</h2>';
                 $html .= '<table>
                     <thead>
                         <tr>
-                            <th>' . s($hdr_fullname) . '</th>
-                            <th>' . s($hdr_course) . '</th>
-                            <th>' . s($hdr_completed) . '</th>
-                            <th>' . s($hdr_expires) . '</th>
-                            <th>' . s($hdr_daysago) . '</th>
+                            <th>' . s($hdrfullname) . '</th>
+                            <th>' . s($hdrcourse) . '</th>
+                            <th>' . s($hdrcompleted) . '</th>
+                            <th>' . s($hdrexpires) . '</th>
+                            <th>' . s($hdrdaysago) . '</th>
                         </tr>
                     </thead>
                     <tbody>';
-                foreach ($expired_users as $item) {
+                foreach ($expiredusers as $item) {
                     $user = $item['user'];
                     $course = $item['course'];
-                    $daysago = floor((time() - $item['timeexpires']) / 86400);
+                    $daysago = floor((time() - $item['timeexpires']) / DAYSECS);
                     if ($daysago < 0) {
                         $daysago = 0;
                     }
@@ -625,23 +664,23 @@ class helper {
             }
 
             // Unenrolled expired.
-            if (!empty($unenrolled_expired_users)) {
-                $html .= '<h2 class="section-title unenrolled">' . s($unenrolled_title) . '</h2>';
+            if (!empty($unenrolledusers)) {
+                $html .= '<h2 class="section-title unenrolled">' . s($unenrolledtitle) . '</h2>';
                 $html .= '<table>
                     <thead>
                         <tr>
-                            <th>' . s($hdr_fullname) . '</th>
-                            <th>' . s($hdr_course) . '</th>
-                            <th>' . s($hdr_completed) . '</th>
-                            <th>' . s($hdr_expires) . '</th>
-                            <th>' . s($hdr_daysago) . '</th>
+                            <th>' . s($hdrfullname) . '</th>
+                            <th>' . s($hdrcourse) . '</th>
+                            <th>' . s($hdrcompleted) . '</th>
+                            <th>' . s($hdrexpires) . '</th>
+                            <th>' . s($hdrdaysago) . '</th>
                         </tr>
                     </thead>
                     <tbody>';
-                foreach ($unenrolled_expired_users as $item) {
+                foreach ($unenrolledusers as $item) {
                     $user = $item['user'];
                     $course = $item['course'];
-                    $daysago = floor((time() - $item['timeexpires']) / 86400);
+                    $daysago = floor((time() - $item['timeexpires']) / DAYSECS);
                     if ($daysago < 0) {
                         $daysago = 0;
                     }
@@ -670,6 +709,7 @@ class helper {
             $message = new \core\message\message();
             $message->component = 'local_briefingexpiry';
             $message->name = 'expirynotice';
+            $message->courseid = SITEID;
             $message->userfrom = \core_user::get_noreply_user();
             $message->userto = $recipient;
             $message->subject = $subject;
@@ -801,6 +841,7 @@ class helper {
         $message = new \core\message\message();
         $message->component = 'local_briefingexpiry';
         $message->name = 'resetnotice';
+        $message->courseid = $course->id;
         $message->userfrom = \core_user::get_noreply_user();
         $message->userto = $user;
         $message->subject = $subject;
@@ -809,6 +850,8 @@ class helper {
         $message->fullmessagehtml = $html;
         $message->smallmessage = $subject;
         $message->notification = 1;
+        $message->contexturl = $courseurl->out(false);
+        $message->contexturlname = format_string($course->fullname);
 
         try {
             message_send($message);

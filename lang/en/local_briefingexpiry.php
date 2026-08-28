@@ -18,7 +18,7 @@
  * English strings for local_briefingexpiry.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
@@ -89,3 +89,14 @@ $string['privacy:metadata:arch:timereset'] = 'When the completion was reset.';
 $string['privacy:metadata:arch:finalgrade'] = 'The final grade of the user before reset.';
 $string['privacy:logpath'] = 'Briefing Notifications Log';
 $string['privacy:archpath'] = 'Briefing Resets Archive';
+
+// Course custom fields created at install time.
+$string['customfieldcategory'] = 'Briefings';
+$string['field_autoreset'] = 'Automatically reset completion when the briefing expires';
+$string['field_enabled'] = 'This course is a briefing';
+$string['field_period'] = 'Briefing validity period';
+$string['period_1year'] = '1 year';
+$string['period_2years'] = '2 years';
+$string['period_3months'] = '3 months';
+$string['period_3years'] = '3 years';
+$string['period_6months'] = '6 months';

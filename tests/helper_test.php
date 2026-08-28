@@ -22,7 +22,7 @@ defined('MOODLE_INTERNAL') || die();
  * Tests for the local_briefingexpiry helper class.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \local_briefingexpiry\helper
  */
@@ -87,6 +87,8 @@ final class helper_test extends \advanced_testcase {
         $this->assertSame('3 months', helper::get_period_spec(5, null));
         $this->assertSame('3 months', helper::get_period_spec(0, '3 месяца'));
         $this->assertSame('1 year', helper::get_period_spec(0, '1 год'));
+        $this->assertSame('2 years', helper::get_period_spec(0, '2 years'));
+        $this->assertSame('6 months', helper::get_period_spec(0, ' 6 months '));
         $this->assertNull(helper::get_period_spec(0, ''));
         $this->assertNull(helper::get_period_spec(0, null));
     }
