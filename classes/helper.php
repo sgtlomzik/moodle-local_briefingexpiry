@@ -464,6 +464,7 @@ class helper {
             $hdrexpires = $stringmanager->get_string('digest_header_expires', 'local_briefingexpiry', null, $lang);
             $hdrdaysleft = $stringmanager->get_string('digest_header_daysleft', 'local_briefingexpiry', null, $lang);
             $hdrdaysago = $stringmanager->get_string('digest_header_daysago', 'local_briefingexpiry', null, $lang);
+            $pluginname = $stringmanager->get_string('pluginname', 'local_briefingexpiry', null, $lang);
 
             $html = '
             <!DOCTYPE html>
@@ -620,7 +621,8 @@ class helper {
                     }
                     $fullname = fullname($user);
                     $html .= '<tr>
-                        <td><strong>' . s($fullname) . '</strong><br><small style="color:#64748b;">' . s($user->email) . '</small></td>
+                        <td><strong>' . s($fullname) . '</strong><br>
+                            <small style="color:#64748b;">' . s($user->email) . '</small></td>
                         <td>' . s(format_string($course->fullname)) . '</td>
                         <td>' . userdate($item['timecompleted'], '%d.%m.%Y') . '</td>
                         <td>' . userdate($item['timeexpires'], '%d.%m.%Y') . '</td>
@@ -653,7 +655,8 @@ class helper {
                     }
                     $fullname = fullname($user);
                     $html .= '<tr>
-                        <td><strong>' . s($fullname) . '</strong><br><small style="color:#64748b;">' . s($user->email) . '</small></td>
+                        <td><strong>' . s($fullname) . '</strong><br>
+                            <small style="color:#64748b;">' . s($user->email) . '</small></td>
                         <td>' . s(format_string($course->fullname)) . '</td>
                         <td>' . userdate($item['timecompleted'], '%d.%m.%Y') . '</td>
                         <td>' . userdate($item['timeexpires'], '%d.%m.%Y') . '</td>
@@ -686,7 +689,8 @@ class helper {
                     }
                     $fullname = fullname($user);
                     $html .= '<tr>
-                        <td><strong>' . s($fullname) . '</strong><br><small style="color:#64748b;">' . s($user->email) . '</small></td>
+                        <td><strong>' . s($fullname) . '</strong><br>
+                            <small style="color:#64748b;">' . s($user->email) . '</small></td>
                         <td>' . s(format_string($course->fullname)) . '</td>
                         <td>' . userdate($item['timecompleted'], '%d.%m.%Y') . '</td>
                         <td>' . userdate($item['timeexpires'], '%d.%m.%Y') . '</td>
@@ -699,7 +703,7 @@ class helper {
             $html .= '
                         </div>
                         <div class="footer">
-                            <p>' . s($stringmanager->get_string('pluginname', 'local_briefingexpiry', null, $lang)) . ' &bull; Moodle</p>
+                            <p>' . s($pluginname) . ' &bull; Moodle</p>
                         </div>
                     </div>
                 </div>
@@ -762,6 +766,7 @@ class helper {
 
         $subject = $stringmanager->get_string('student_notification_subject', 'local_briefingexpiry', $a, $lang);
         $body = $stringmanager->get_string('student_notification_body', 'local_briefingexpiry', $a, $lang);
+        $pluginname = $stringmanager->get_string('pluginname', 'local_briefingexpiry', null, $lang);
 
         $html = '
         <!DOCTYPE html>
@@ -831,7 +836,7 @@ class helper {
                         <div class="message-body">' . $body . '</div>
                     </div>
                     <div class="footer">
-                        <p>' . s($stringmanager->get_string('pluginname', 'local_briefingexpiry', null, $lang)) . ' &bull; Moodle</p>
+                        <p>' . s($pluginname) . ' &bull; Moodle</p>
                     </div>
                 </div>
             </div>
