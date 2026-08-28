@@ -16,8 +16,6 @@
 
 namespace local_briefingexpiry;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tests for the local_briefingexpiry helper class.
  *
@@ -27,7 +25,6 @@ defined('MOODLE_INTERNAL') || die();
  * @covers     \local_briefingexpiry\helper
  */
 final class helper_test extends \advanced_testcase {
-
     /**
      * Configure a course as a briefing course via the custom fields created at install.
      *
@@ -249,7 +246,7 @@ final class helper_test extends \advanced_testcase {
 
         // One digest to the admin + one reset notice to the student.
         $this->assertCount(2, $messages);
-        $recipients = array_map(static function($message) {
+        $recipients = array_map(static function ($message) {
             return $message->useridto;
         }, $messages);
         $this->assertContains((string)$admin->id, array_map('strval', $recipients));

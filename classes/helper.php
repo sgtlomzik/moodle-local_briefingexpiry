@@ -24,8 +24,6 @@
 
 namespace local_briefingexpiry;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Expiry calculations, completion resets and notifications for briefing courses.
  *
@@ -34,7 +32,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class helper {
-
     /**
      * Period specs keyed by the 1-based index the select custom field stores.
      *
@@ -159,12 +156,16 @@ class helper {
             $DB->delete_records('course_completion_crit_compl', ['course' => $courseid, 'userid' => $userid]);
 
             // Delete activity completion records.
-            $DB->delete_records_select('course_modules_completion',
+            $DB->delete_records_select(
+                'course_modules_completion',
                 'userid = ? AND coursemoduleid IN (SELECT id FROM {course_modules} WHERE course = ?)',
-                [$userid, $courseid]);
-            $DB->delete_records_select('course_modules_viewed',
+                [$userid, $courseid]
+            );
+            $DB->delete_records_select(
+                'course_modules_viewed',
                 'userid = ? AND coursemoduleid IN (SELECT id FROM {course_modules} WHERE course = ?)',
-                [$userid, $courseid]);
+                [$userid, $courseid]
+            );
 
             // Reset quiz attempts if enabled. This must happen before the
             // gradebook wipe: quiz_delete_attempt() recalculates quiz_grades and pushes
@@ -281,14 +282,18 @@ class helper {
             ", [
                 'courseid' => $course->id,
                 'active' => \ENROL_USER_ACTIVE,
-                'enrolactive' => \ENROL_INSTANCE_ENABLED
+                'enrolactive' => \ENROL_INSTANCE_ENABLED,
             ]);
             $enrolledset = array_flip($enrolledids);
 
             // Batch-load already sent notifications for this course.
             $sentset = [];
-            $sentlogs = $DB->get_records('local_briefingexpiry_log', ['courseid' => $course->id],
-                '', 'id, userid, timecompleted, notificationtype');
+            $sentlogs = $DB->get_records(
+                'local_briefingexpiry_log',
+                ['courseid' => $course->id],
+                '',
+                'id, userid, timecompleted, notificationtype'
+            );
             foreach ($sentlogs as $sentlog) {
                 $sentset["{$sentlog->userid}_{$sentlog->timecompleted}_{$sentlog->notificationtype}"] = true;
             }
@@ -348,15 +353,25 @@ class helper {
                         if ($notifyexpired) {
                             $expiredusers[] = $entry;
                             if (!$didreset) {
-                                $pendinglogs[] = self::make_log($userid, $course->id, $timecompleted,
-                                    $expirytime, 'expired');
+                                $pendinglogs[] = self::make_log(
+                                    $userid,
+                                    $course->id,
+                                    $timecompleted,
+                                    $expirytime,
+                                    'expired'
+                                );
                             }
                         }
                     } else {
                         if ($includeunenrolled && $notifyexpired) {
                             $unenrolledusers[] = $entry;
-                            $pendinglogs[] = self::make_log($userid, $course->id, $timecompleted,
-                                $expirytime, 'expired');
+                            $pendinglogs[] = self::make_log(
+                                $userid,
+                                $course->id,
+                                $timecompleted,
+                                $expirytime,
+                                'expired'
+                            );
                         }
                         // Otherwise nothing irreversible happened: leave the record
                         // unlogged so it is picked up if the settings change later.
@@ -369,8 +384,13 @@ class helper {
                             'timecompleted' => $timecompleted,
                             'timeexpires' => $expirytime,
                         ];
-                        $pendinglogs[] = self::make_log($userid, $course->id, $timecompleted,
-                            $expirytime, 'warning');
+                        $pendinglogs[] = self::make_log(
+                            $userid,
+                            $course->id,
+                            $timecompleted,
+                            $expirytime,
+                            'warning'
+                        );
                     }
                 }
             }
@@ -397,8 +417,13 @@ class helper {
      * @param string $type Notification type ('warning' or 'expired')
      * @return \stdClass
      */
-    protected static function make_log(int $userid, int $courseid, int $timecompleted,
-            int $timeexpires, string $type): \stdClass {
+    protected static function make_log(
+        int $userid,
+        int $courseid,
+        int $timecompleted,
+        int $timeexpires,
+        string $type
+    ): \stdClass {
         $log = new \stdClass();
         $log->userid = $userid;
         $log->courseid = $courseid;
@@ -418,11 +443,18 @@ class helper {
      * @param int $timeexpires Expiry timestamp
      * @param string $type Notification type ('warning' or 'expired')
      */
-    protected static function write_log(int $userid, int $courseid, int $timecompleted,
-            int $timeexpires, string $type): void {
+    protected static function write_log(
+        int $userid,
+        int $courseid,
+        int $timecompleted,
+        int $timeexpires,
+        string $type
+    ): void {
         global $DB;
-        $DB->insert_record('local_briefingexpiry_log',
-            self::make_log($userid, $courseid, $timecompleted, $timeexpires, $type));
+        $DB->insert_record(
+            'local_briefingexpiry_log',
+            self::make_log($userid, $courseid, $timecompleted, $timeexpires, $type)
+        );
     }
 
     /**

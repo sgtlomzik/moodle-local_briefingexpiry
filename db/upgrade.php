@@ -22,8 +22,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Upgrade the local_briefingexpiry plugin.
  *
@@ -41,8 +39,10 @@ function xmldb_local_briefingexpiry_upgrade($oldversion) {
         $fields = $DB->get_records('customfield_field', ['shortname' => 'briefing_period']);
         foreach ($fields as $field) {
             $configdata = json_decode($field->configdata, true);
-            if (is_array($configdata) && isset($configdata['options'])
-                    && strpos($configdata['options'], '3 месяца') === false) {
+            if (
+                is_array($configdata) && isset($configdata['options'])
+                    && strpos($configdata['options'], '3 месяца') === false
+            ) {
                 $configdata['options'] .= "\n3 месяца";
                 $DB->set_field('customfield_field', 'configdata', json_encode($configdata), ['id' => $field->id]);
             }
