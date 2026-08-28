@@ -1,67 +1,127 @@
-# Briefing Expiry Management (local_briefingexpiry)
+# Briefing expiry management for Moodle
 
-Moodle plugin for managing the validity period of briefing courses (e.g., fire safety, occupational health, etc.).
+[![Moodle plugin CI](https://github.com/sgtlomzik/moodle-local_briefingexpiry/actions/workflows/moodle-ci.yml/badge.svg)](https://github.com/sgtlomzik/moodle-local_briefingexpiry/actions/workflows/moodle-ci.yml)
 
-## Key Features
+Tracks how long a completed course stays valid, tells managers what is about to lapse, and can
+reset the completion of individual learners so they retake it.
 
-1. **Course Flagging**: Mark courses as briefings using Moodle's native custom fields API.
-2. **Custom Expiry Periods**: Set the briefing validity period to 3 months, 6 months, 1 year, 2 years, or 3 years.
-3. **Daily Digest**: Send a daily digest report to managers/administrators outlining expiring briefings, expired briefings, and expired briefings of unenrolled users.
-4. **Targeted Reset (Double Opt-In)**: Automatically and selectively reset user completion and gradebook scores for expired briefing courses, allowing users to retake them without clearing course-wide settings or other users' data.
-5. **Student Notifications**: Notify students after their completion has been reset, prompting them to retake the briefing.
-6. **Data Archiving**: Maintain historical logs of resets, including previous completion dates and final grades.
+Compliance training — fire safety, occupational health, data protection — is not "done" once;
+it is done *for a year*. Moodle records a completion date and stops there. This plugin marks
+selected courses as briefings with a validity period, emails a daily digest of what is expiring
+and what has already lapsed, and optionally clears the completion of the affected learners so
+the course reappears as outstanding.
 
----
+## Requirements
 
-## Installation & Setup
+- Moodle 4.5 (LTS) or later.
+- Moodle cron running daily — the check is a scheduled task.
+- Course completion enabled on the briefing courses.
 
-1. Place the plugin files in your Moodle directory under `local/briefingexpiry/`.
-2. Run the Moodle upgrade script (via CLI `php admin/cli/upgrade.php` or by visiting the Site Administration page).
-3. The installation automatically creates a custom field category named **"Инструктажи" (Briefings)** containing three fields:
-   - **`briefing_enabled`** (Checkbox): Enable briefing tracking for the course.
-   - **`briefing_period`** (Dropdown): Select the validity period (6 months, 1 year, 2 years, 3 years, 3 months).
-   - **`briefing_autoreset`** (Checkbox): Enable auto-resetting completion when the briefing expires.
+## Installation
 
----
+### From the ZIP file
+
+1. Download the ZIP of this repository.
+2. Go to **Site administration → Plugins → Install plugins** and upload the ZIP.
+3. Follow the on-screen upgrade steps.
+
+### From Git
+
+```bash
+cd /path/to/moodle
+git clone https://github.com/sgtlomzik/moodle-local_briefingexpiry.git local/briefingexpiry
+```
+
+Then visit **Site administration → Notifications** (or run `php admin/cli/upgrade.php`) to
+complete the installation.
+
+Installing creates a course custom field category named **Briefings** containing three fields:
+
+| Shortname | Type | Purpose |
+| --- | --- | --- |
+| `briefing_enabled` | Checkbox | Marks the course as a briefing. |
+| `briefing_period` | Menu | How long a completion stays valid: 6 months, 1 year, 2 years, 3 years or 3 months. |
+| `briefing_autoreset` | Checkbox | Reset completion for this course when a learner's briefing expires. |
+
+The options of `briefing_period` are stored by position, so new options may only ever be appended.
+
+## Setting up a briefing course
+
+1. Edit the course settings and, under **Briefings**, tick **This course is a briefing**.
+2. Choose the validity period.
+3. Tick **Automatically reset completion when the briefing expires** if learners should have to
+   retake it. This has no effect until the global auto-reset setting below is also on.
 
 ## Configuration
 
-Navigate to **Site Administration > Plugins > Local Plugins > Briefing Expiry Management**:
-- **Warning Days**: Number of days prior to expiry when a warning notice is sent.
-- **Notify Expired**: Toggle digest alerts for already expired briefings. When disabled, expired briefings are excluded from the digest, but auto-reset (if enabled) still runs.
-- **Notification Recipients**: Choose managers/users who will receive the daily digest (users must have the capability `local/briefingexpiry:receivenotifications`).
-- **Include Unenrolled**: Include unenrolled users in a separate section of the digest.
-- **Global Auto-Reset**: Global switch to enable/disable completion resets.
-- **Reset Quiz Attempts**: If enabled, all quiz attempts in the course are deleted when completion is reset.
-- **Notify Student**: If enabled, students receive an automated message when their completion is reset.
+**Site administration → Plugins → Local plugins → Briefing expiry management**
 
----
+| Setting | Description |
+| --- | --- |
+| Warning days | How many days before expiry the warning appears in the digest. |
+| Notify expired | Include already expired briefings in the digest. Auto-reset still runs when this is off. |
+| Notification recipients | Who receives the daily digest. Users need `local/briefingexpiry:receivenotifications`. |
+| Include unenrolled | List expired briefings of users who are no longer enrolled, in their own section. |
+| Global auto-reset | Master switch for resetting completions. Both this and the per-course field must be on. |
+| Reset quiz attempts | Delete the learner's quiz attempts in the course as part of a reset. |
+| Notify student | Message the learner after their completion is reset. |
 
-## Important Constraints & Technical Design
+The scheduled task **Check briefing expiry** runs daily at 06:00. To run it by hand:
 
-> [!WARNING]
-> **Limited Module Reset Support:**
-> This plugin performs targeted resets of course completion status, activity completions (`course_modules_completion`), course grades, and quiz attempts (if configured). 
-> SCORM packages, Assignments (`mod_assign`), and other third-party graded activities do not have their internal attempts/data deleted by this custom targeted reset mechanism. 
-> To ensure compatibility, make sure briefing courses use Moodle Quizzes or standard manual completion rather than SCORM packages or Assignments for marking compliance.
-
----
-
-## CLI & Scheduled Tasks
-
-The daily check runs as a scheduled task at **06:00 AM** daily. You can run the task manually via CLI for testing:
 ```bash
-php admin/cli/scheduled_task.php --execute="\local_briefingexpiry\task\check_expiry"
+php admin/cli/scheduled_task.php --execute='\local_briefingexpiry\task\check_expiry'
 ```
 
-## Reset Archive Report
+## What a reset does, and does not, do
 
-Every automatic completion reset is archived (previous completion date, expiry date, reset time, final grade before reset), so the history of previous briefing completions is preserved. Administrators and managers can browse it under **Site Administration > Reports > Briefing reset archive** (capability `local/briefingexpiry:viewreport`).
+> **Warning**
+> A reset is irreversible. It deletes course completion records, activity completions and the
+> learner's grades in that course, and — if **Reset quiz attempts** is on — their quiz attempts.
+> The previous completion date and final grade are archived first, but the underlying activity
+> data is gone.
 
-## Data Privacy & GDPR
+The reset is targeted at one learner rather than using Moodle's course reset, so other people's
+data and the course configuration are untouched. It covers course completion,
+`course_modules_completion`, `course_modules_viewed`, the gradebook entries for that learner and
+quiz attempts.
 
-The plugin complies with Moodle's privacy API, registering:
-- `local_briefingexpiry_log` (notification logs)
-- `local_briefingexpiry_arch` (completion reset archives)
+It does **not** delete the internal data of SCORM packages, assignments (`mod_assign`) or other
+third party graded activities. Build briefing courses around quizzes or manual completion; a
+SCORM package will keep its own record of the learner's previous attempt.
 
-Users can export or delete their briefing logs and archives through Moodle's standard Data Privacy tools.
+## Reset archive report
+
+Every automatic reset is archived with the previous completion date, the expiry date, the reset
+time and the final grade before the reset. Browse it under
+**Site administration → Reports → Briefing reset archive**
+(capability `local/briefingexpiry:viewreport`).
+
+## Privacy
+
+The plugin stores two tables of personal data:
+
+- `local_briefingexpiry_log` — which notifications have been sent, so nobody is told twice.
+- `local_briefingexpiry_arch` — the archive of completion resets.
+
+Both are declared through the Privacy API and are exported and deleted by Moodle's standard
+data requests. The plugin sends no data outside the site.
+
+## Bug tracker
+
+Please report issues at
+<https://github.com/sgtlomzik/moodle-local_briefingexpiry/issues>.
+
+## License
+
+2026 SgtLomzik <lomzike@gmail.com>
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program. If not,
+see <https://www.gnu.org/licenses/>.

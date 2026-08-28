@@ -16,18 +16,15 @@
 
 namespace local_briefingexpiry;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tests for the local_briefingexpiry helper class.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \local_briefingexpiry\helper
  */
 final class helper_test extends \advanced_testcase {
-
     /**
      * Configure a course as a briefing course via the custom fields created at install.
      *
@@ -79,6 +76,9 @@ final class helper_test extends \advanced_testcase {
         set_config('notifystudent', 1, 'local_briefingexpiry');
     }
 
+    /**
+     * Get period spec.
+     */
     public function test_get_period_spec(): void {
         $this->assertSame('6 months', helper::get_period_spec(1, null));
         $this->assertSame('1 year', helper::get_period_spec(2, null));
@@ -87,10 +87,15 @@ final class helper_test extends \advanced_testcase {
         $this->assertSame('3 months', helper::get_period_spec(5, null));
         $this->assertSame('3 months', helper::get_period_spec(0, '3 месяца'));
         $this->assertSame('1 year', helper::get_period_spec(0, '1 год'));
+        $this->assertSame('2 years', helper::get_period_spec(0, '2 years'));
+        $this->assertSame('6 months', helper::get_period_spec(0, ' 6 months '));
         $this->assertNull(helper::get_period_spec(0, ''));
         $this->assertNull(helper::get_period_spec(0, null));
     }
 
+    /**
+     * Calculate expiry.
+     */
     public function test_calculate_expiry(): void {
         $base = mktime(12, 0, 0, 3, 15, 2026);
         $this->assertSame(mktime(12, 0, 0, 3, 15, 2027), helper::calculate_expiry($base, '1 year'));
@@ -99,6 +104,9 @@ final class helper_test extends \advanced_testcase {
         $this->assertSame(mktime(12, 0, 0, 3, 15, 2029), helper::calculate_expiry($base, '3 years'));
     }
 
+    /**
+     * Get briefing courses.
+     */
     public function test_get_briefing_courses(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -113,6 +121,9 @@ final class helper_test extends \advanced_testcase {
         $this->assertArrayHasKey($briefing->id, $courses);
     }
 
+    /**
+     * Check expiry sends warning.
+     */
     public function test_check_expiry_sends_warning(): void {
         global $DB;
         $this->resetAfterTest();
@@ -153,6 +164,9 @@ final class helper_test extends \advanced_testcase {
         $sink->close();
     }
 
+    /**
+     * Check expiry expired without autoreset.
+     */
     public function test_check_expiry_expired_without_autoreset(): void {
         global $DB;
         $this->resetAfterTest();
@@ -198,6 +212,9 @@ final class helper_test extends \advanced_testcase {
         $sink->close();
     }
 
+    /**
+     * Check expiry expired with autoreset.
+     */
     public function test_check_expiry_expired_with_autoreset(): void {
         global $DB, $CFG;
         $this->resetAfterTest();
@@ -229,7 +246,7 @@ final class helper_test extends \advanced_testcase {
 
         // One digest to the admin + one reset notice to the student.
         $this->assertCount(2, $messages);
-        $recipients = array_map(static function($message) {
+        $recipients = array_map(static function ($message) {
             return $message->useridto;
         }, $messages);
         $this->assertContains((string)$admin->id, array_map('strval', $recipients));
@@ -265,6 +282,9 @@ final class helper_test extends \advanced_testcase {
         $sink->close();
     }
 
+    /**
+     * Check expiry unenrolled user.
+     */
     public function test_check_expiry_unenrolled_user(): void {
         global $DB;
         $this->resetAfterTest();
@@ -303,6 +323,9 @@ final class helper_test extends \advanced_testcase {
         $sink->close();
     }
 
+    /**
+     * Check expiry notifyexpired disabled.
+     */
     public function test_check_expiry_notifyexpired_disabled(): void {
         global $DB;
         $this->resetAfterTest();
@@ -345,6 +368,9 @@ final class helper_test extends \advanced_testcase {
         ]));
     }
 
+    /**
+     * Check expiry quarterly period.
+     */
     public function test_check_expiry_quarterly_period(): void {
         global $DB;
         $this->resetAfterTest();
@@ -375,6 +401,9 @@ final class helper_test extends \advanced_testcase {
         ]));
     }
 
+    /**
+     * Reset user completion with quiz.
+     */
     public function test_reset_user_completion_with_quiz(): void {
         global $DB, $CFG;
         $this->resetAfterTest();

@@ -18,14 +18,15 @@
  * Version details.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_briefingexpiry';
-$plugin->version   = 2026071000;
-$plugin->requires  = 2024042200; // Requires Moodle 4.4
+$plugin->version   = 2026082800;
+$plugin->requires  = 2024100700; // Moodle 4.5 (LTS).
+$plugin->supported = [405, 502];
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = '1.1.0';
+$plugin->release   = '1.2.0';

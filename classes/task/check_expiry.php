@@ -18,16 +18,20 @@
  * Scheduled task for checking briefing expiry.
  *
  * @package    local_briefingexpiry
- * @copyright  2026
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 namespace local_briefingexpiry\task;
 
-defined('MOODLE_INTERNAL') || die();
-
+/**
+ * Runs the daily briefing expiry check.
+ *
+ * @package    local_briefingexpiry
+ * @copyright  2026 SgtLomzik <lomzike@gmail.com>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 class check_expiry extends \core\task\scheduled_task {
-
     /**
      * Get a descriptive name for the task.
      *
