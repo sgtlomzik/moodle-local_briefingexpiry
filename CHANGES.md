@@ -2,6 +2,21 @@
 
 All notable changes to this plugin are documented in this file.
 
+## [1.2.1] - 2026-08-31
+
+### Added
+- Privacy provider tests covering metadata, the contexts and users a person's data
+  is found in, the export, and all three deletion paths, including the context
+  levels the provider has to ignore.
+- Tests for the `check_expiry` scheduled task: its name, its registration and
+  schedule in `db/tasks.php`, and that running it performs the expiry check.
+- Helper tests for the final grade lookup, the digest (no recipients, recipients
+  without `local/briefingexpiry:receivenotifications`, and all three report
+  sections), the student reset notice, suspended and deleted users, briefing
+  courses with no period, the fallback to the 30-day warning window, unenrolled
+  users while `includeunenrolled` is off, and a reset that leaves quiz attempts
+  alone while `resetquizattempts` is off.
+
 ## [1.2.0] - 2026-08-28
 
 ### Added
